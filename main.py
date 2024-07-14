@@ -40,15 +40,17 @@ async def my_task(interaction: discord.Interaction):
             message_statement += "**公開予定**\n"
 
         for key, value in publication_date_dict.items():
-            if value["publication_user_name"] == user_name:
-                message_statement += f"{value['publication_date']} | {key}\n"
+            for name in value["publication_people_name"]:
+                if name == user_name:
+                    message_statement += f"{value['publication_date']} | {key}\n"
 
         if any(publication_date_dict):
             message_statement += "\n**編集締め切り**\n"
 
         for key, value in editorial_deadline_dict.items():
-            if value["editor"] == user_name:
-                message_statement += f"{value['editorial_deadline_date']} | {key}\n"
+            for name in value["editor_people_name"]:    
+                if name == user_name:
+                    message_statement += f"{value['editorial_deadline_date']} | {key}\n"
 
     await interaction.followup.send(message_statement)
 
