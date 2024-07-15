@@ -1,5 +1,6 @@
 import discord
 from discord import app_commands
+from discord.ext import tasks
 import os
 import requests
 import datetime
@@ -15,6 +16,19 @@ client = discord.Client(intents=intents)
 
 tree = app_commands.CommandTree(client)
 
+@client.event
+async def on_ready():
+    """
+        サーバ起動時のログ出力
+    """
+    print(f"We have logged in as {client.user}")
+    print(f"discord.py version{discord.__version__}")
+    print(f"REMINDER_CHANNEL_ID type: {type(config.REMINDER_CHANNEL_ID)}")
+    
+    reminder.start()
+    
+    await tree.sync()
+    
 @tree.command(description="ユーザの直近のタスクを表示する")
 async def my_task(interaction: discord.Interaction):
     """
@@ -52,15 +66,30 @@ async def my_task(interaction: discord.Interaction):
                 if name == user_name:
                     message_statement += f"{value['editorial_deadline_date']} | {key}\n"
 
-    await interaction.followup.send(message_statement)
+    await interaction.followup.send(message_statement)    
 
-@client.event
-async def on_ready():
-    """
-        サーバ起動時のログ出力
-    """
-    print(f"We have logged in as {client.user}")
-    print(f"discord.py version{discord.__version__}")
-    await tree.sync()
+@tasks.loop(seconds=60)
+async def reminder():
+    now = datetime.datetime.utcnow() + datetime.timedelta(hours=config.DIFF_JST_FROM_UTC)
+    print(f"h:m={now.hour}:{now.minute}")
+    
+    if now.hour == 1 and now.minute == 0 :
+        print("リマンイダー開始")
+        channel = client.get_channel(config.REMINDER_CHANNEL_ID)
+        
+        if channel is not None:    
+            user_data = utils.get_user_data()
+            publication_date_dict, editorial_deadline_dict = utils.get_progress_data()
+
+            message_statement = utils.make_message_statement(user_data, publication_date_dict, editorial_deadline_dict)
+            
+            await channel.send(message_statement)
+            print("リマンイダー成功")
+        else:
+            print("Channel not found!")
+
+@reminder.before_loop
+async def before_reminder():
+    await client.wait_until_ready()
 
 client.run(config.DISCORD_TOKEN)
