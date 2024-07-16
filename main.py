@@ -1,95 +1,129 @@
-import discord
-from discord import app_commands
+from discord import Intents, AutoShardedClient, Interaction, app_commands, errors
 from discord.ext import tasks
 import os
-import requests
 import datetime
+import pytz
+from logging import getLogger, handlers, StreamHandler, Formatter, INFO
 
 import config
-import utils
+import yuru_utils
+
+# Loggerの設定
+logger = getLogger("discord")
+logger.setLevel(INFO)
+rot_file_handler = handlers.RotatingFileHandler(
+    filename="/home/src/yuru_notification/logs/yuru_notice_discord.log",
+    encoding="utf-8",
+    maxBytes=32*1024*1024,
+    backupCount=5,
+)
+dt_fmt = "%Y-%m-%d %H:%M:%S"
+formatter = Formatter("[{asctime}] [{levelname:<8}] {name}: {message}", dt_fmt, style='{')
+rot_file_handler.setFormatter(formatter)
+logger.addHandler(rot_file_handler)
+
+stream_handler = StreamHandler()
+stream_handler.setFormatter(formatter)
+logger.addHandler(stream_handler)
+
+logger.info("Successfully configured the logger.")
 
 # Botの設定
-intents = discord.Intents.default()
+intents = Intents.default()
 intents.message_content = True
 intents.members = True
-client = discord.Client(intents=intents)
+client = AutoShardedClient(intents=intents, shard_count=3)
 
 tree = app_commands.CommandTree(client)
 
 @client.event
 async def on_ready():
+    try:
+        reminder.start()
+        await tree.sync()
+        logger.info(f"We have logged in as {client.user.name}[{client.user.id}].")
+    except Exception as e:
+        logger.error(f"Error in on_ready: {e}", exc_info=True)
+
+@tree.command(description="ユーザの直近3日間のタスクを表示する")
+async def my_task(interaction: Interaction):
     """
-        サーバ起動時のログ出力
+    コマンド my_task を入力されたらそのユーザの直近のタスクをメッセージで送信
     """
-    print(f"We have logged in as {client.user}")
-    print(f"discord.py version{discord.__version__}")
-    print(f"REMINDER_CHANNEL_ID type: {type(config.REMINDER_CHANNEL_ID)}")
-    
-    reminder.start()
-    
-    await tree.sync()
-    
-@tree.command(description="ユーザの直近のタスクを表示する")
-async def my_task(interaction: discord.Interaction):
-    """
-    コマンド /my_task を入力されたらそのユーザの直近のタスクをメッセージで送信
-    """
-    await interaction.response.defer(ephemeral=True)
+    try:
+        await interaction.response.defer(ephemeral=True)
+        
+        logger.info(f"Command my_task is called.")
 
-    user_mention = interaction.user.mention
-    user_id = interaction.user.id
+        user_mention = interaction.user.mention
+        user_id = interaction.user.id
 
-    user_data = utils.get_user_data()
-    user_name = [k for k, v in user_data.items() if v == user_id][0]
+        user_data = yuru_utils.get_user_data()
+        user_name = [k for k, v in user_data.items() if v == user_id][0]
 
-    publication_date_dict, editorial_deadline_dict = utils.get_progress_data()
+        publication_date_dict, editorial_deadline_dict = yuru_utils.get_progress_data()
 
-    message_statement = user_mention + "\n"
+        message_statement = user_mention + "\n"
 
-    if not (any(publication_date_dict) or any(editorial_deadline_dict)):
-        message_statement = "直近の3日間のタスクはない"
+        if not (publication_date_dict or editorial_deadline_dict):
+            message_statement = "直近の3日間のタスクはない"
+            logger.info(f"publication_date_dict and editorial_deadline_dict are empty.")
 
-    else:
-        if any(publication_date_dict):
-            message_statement += "**公開予定**\n"
+        else:
+            if publication_date_dict:
+                message_statement += "**公開予定**\n"
 
-        for key, value in publication_date_dict.items():
-            for name in value["publication_people_name"]:
-                if name == user_name:
-                    message_statement += f"{value['publication_date']} | {key}\n"
+            for key, value in publication_date_dict.items():
+                for name in value["publication_people_name"]:
+                    if name == user_name:
+                        message_statement += f"{value['publication_date']} | {key}\n"
 
-        if any(publication_date_dict):
-            message_statement += "\n**編集締め切り**\n"
+            if publication_date_dict:
+                message_statement += "\n**編集締め切り**\n"
 
-        for key, value in editorial_deadline_dict.items():
-            for name in value["editor_people_name"]:    
-                if name == user_name:
-                    message_statement += f"{value['editorial_deadline_date']} | {key}\n"
+            for key, value in editorial_deadline_dict.items():
+                for name in value["editor_people_name"]:    
+                    if name == user_name:
+                        message_statement += f"{value['editorial_deadline_date']} | {key}\n"
 
-    await interaction.followup.send(message_statement)    
+        await interaction.followup.send(message_statement)
+        logger.info(f"Send a message about the user\'s tasks.")
+    except discord.errors.NotFound as e:
+        logger.error(f"Interaction not found: {e}", exc_info=True)
+    except Exception as e:
+        logger.error(f"Error in my_task command: {e}", exc_info=True)
+        await interaction.followup.send("タスクの取得中にエラーが発生しました。管理者に連絡してください。", ephemeral=True)
 
 @tasks.loop(seconds=60)
 async def reminder():
-    now = datetime.datetime.utcnow() + datetime.timedelta(hours=config.DIFF_JST_FROM_UTC)
-    print(f"h:m={now.hour}:{now.minute}")
-    
-    if now.hour == 1 and now.minute == 0 :
-        print("リマンイダー開始")
-        channel = client.get_channel(config.REMINDER_CHANNEL_ID)
+    try:
+        now = datetime.datetime.now(pytz.timezone('Asia/Tokyo'))
         
-        if channel is not None:    
-            user_data = utils.get_user_data()
-            publication_date_dict, editorial_deadline_dict = utils.get_progress_data()
-
-            message_statement = utils.make_message_statement(user_data, publication_date_dict, editorial_deadline_dict)
+        if now.hour == 21 and now.minute == 3 :
             
-            await channel.send(message_statement)
-            print("リマンイダー成功")
-        else:
-            print("Channel not found!")
+            logger.info(f"The designated time has arrived.")
+            channel = client.get_channel(config.REMINDER_CHANNEL_ID)
+            
+            if channel is not None:    
+                user_data = yuru_utils.get_user_data()
+                publication_date_dict, editorial_deadline_dict = yuru_utils.get_progress_data()
+
+                message_statement = yuru_utils.make_message_statement(user_data, publication_date_dict, editorial_deadline_dict)
+                
+                await channel.send(message_statement)
+                logger.info(f"Sent you reminder notices for your tasks.\nMessage: \n{message_statement}")
+            else:
+                logger.info(f"Channel not found!")
+    except Exception as e:
+        logger.error(f"Error in reminder task: {e}", exc_info=True)
 
 @reminder.before_loop
 async def before_reminder():
     await client.wait_until_ready()
 
-client.run(config.DISCORD_TOKEN)
+try:
+    client.run(config.DISCORD_TOKEN, log_handler=None)
+except errors.LoginFailure:
+    logger.error("Failed to login. Please check your token.")
+except Exception as e:
+    logger.error(f"An error occurred while running the bot: {e}", exc_info=True)
