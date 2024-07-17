@@ -34,9 +34,9 @@ def get_user_data() -> dict:
     except requests.RequestException as e:
         logger.error(f"Error fetching user data: {e}", exc_info=True)
         return {}
+    
 
-
-def get_progress_data() -> (dict, dict):
+def get_progress_data_for_3days() -> (dict, dict):
     """
     Notionの進捗管理データベースから今日から3日間で公開予定と編集締め切りの情報を取得
     """
