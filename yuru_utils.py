@@ -56,8 +56,8 @@ def get_progress_data_for_3days() -> (dict, dict):
 
             for result in data.get("results", []):
                 properties = result.get("properties", {})
-                
-                title = properties.get("タイトル",{}).get("title",[{}])[0].get("text",{}).get("content", "").replace("_", " ")
+                titles = properties.get("タイトル",{}).get("title",[{}])
+                title = "".join(t.get("text",{}).get("content", "") for t in titles).replace("_", " ")
                 publication_people = properties.get("入稿担当", {}).get("people", [{}])
                 publication_people_name = [person.get("name", "") for person in publication_people] 
                 publication_date = properties.get("公開日", {}).get("date",{}).get("start", "")
@@ -76,7 +76,8 @@ def get_progress_data_for_3days() -> (dict, dict):
 
             for result in data.get("results", []):
                 properties = result.get("properties", {})
-                title = properties.get("タイトル",{}).get("title",[{}])[0].get("text",{}).get("content", "").replace("_", " ")
+                titles = properties.get("タイトル",{}).get("title",[{}])
+                title = "".join(t.get("text",{}).get("content", "") for t in titles).replace("_", " ")
                 editor_people = properties.get("編集者", {}).get("people", [{}])
                 editor_people_name = [editor.get("name", "") for editor in editor_people]
                 editorial_deadline_date = properties.get("編集締め切り",{}).get("date",{}).get("start", "")
@@ -114,3 +115,4 @@ def make_message_statement(user_data: dict, publication_date_dict: dict,editoria
     except Exception as e:
         logger.error(f"Error creating message statement: {e}", exc_info=True)
         return "メッセージの作成中にエラーが発生しました。管理者に連絡してください。"
+    
