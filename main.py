@@ -106,7 +106,7 @@ async def reminder():
     try:
         now = datetime.datetime.now(pytz.timezone('Asia/Tokyo'))
         
-        if now.hour == 11 and now.minute == 20 :
+        if now.hour == 12 and now.minute == 0 :
             
             logger.info(f"The designated time has arrived.")
             channel = client.get_channel(config.REMINDER_CHANNEL_ID)

@@ -1,6 +1,5 @@
 import requests
 import os
-import requests
 import datetime
 import pytz
 from logging import getLogger
@@ -58,7 +57,7 @@ def get_progress_data_for_3days() -> (dict, dict):
             for result in data.get("results", []):
                 properties = result.get("properties", {})
                 
-                title = properties.get("タイトル",{}).get("title",[{}])[0].get("text",{}).get("content", "")
+                title = properties.get("タイトル",{}).get("title",[{}])[0].get("text",{}).get("content", "").replace("_", " ")
                 publication_people = properties.get("入稿担当", {}).get("people", [{}])
                 publication_people_name = [person.get("name", "") for person in publication_people] 
                 publication_date = properties.get("公開日", {}).get("date",{}).get("start", "")
