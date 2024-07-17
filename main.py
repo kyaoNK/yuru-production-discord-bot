@@ -12,7 +12,7 @@ import yuru_utils
 logger = getLogger("discord")
 logger.setLevel(INFO)
 rot_file_handler = handlers.RotatingFileHandler(
-    filename="/home/src/yuru_notification/logs/yuru_notice_discord.log",
+    filename=config.YURU_DISCORD_BOT_DIRPATH+"/logs/yuru_notice_discord.log",
     encoding="utf-8",
     maxBytes=32*1024*1024,
     backupCount=5,
@@ -106,7 +106,7 @@ async def reminder():
     try:
         now = datetime.datetime.now(pytz.timezone('Asia/Tokyo'))
         
-        if now.hour == 12 and now.minute == 0 :
+        if now.hour == 12 and now.minute == 30 :
             
             logger.info(f"The designated time has arrived.")
             channel = client.get_channel(config.REMINDER_CHANNEL_ID)

@@ -6,7 +6,9 @@ logger = getLogger("discord")
 
 def load_config():
     try:
-        load_dotenv(dotenv_path='/home/src/yuru_notification/.env')
+        config_file_dir = os.path.dirname(__file__)
+        
+        load_dotenv(dotenv_path=config_file_dir + '/.env')
 
         # Notion設定
         notion_api_key = os.environ.get('NOTION_API_KEY')
@@ -36,7 +38,10 @@ def load_config():
             reminder_channel_id = int(reminder_channel_id)
         except ValueError:
             raise ValueError("REMINDER_CHANNEL_ID must be an integer")
-
+        
+        # 絶対パス設定
+        yuru_discord_bot_dirpath = os.environ.get('YURU_DISCORD_BOT_DIRPATH')
+        
         return {
             "NOTION_API_KEY": notion_api_key,
             "USER_DATABASE_ID": user_database_id,
@@ -45,8 +50,10 @@ def load_config():
             "PROGRESS_DATABASE_URL": progress_database_url,
             "HEADERS": headers,
             "DISCORD_TOKEN": discord_token,
-            "REMINDER_CHANNEL_ID": reminder_channel_id
+            "REMINDER_CHANNEL_ID": reminder_channel_id,
+            "YURU_DISCORD_BOT_DIRPATH": yuru_discord_bot_dirpath
         }
+        
     except Exception as e:
         logger.error(f"Error loading configuration: {e}", exc_info=True)
         raise

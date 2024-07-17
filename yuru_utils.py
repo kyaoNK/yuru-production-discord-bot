@@ -76,7 +76,7 @@ def get_progress_data_for_3days() -> (dict, dict):
 
             for result in data.get("results", []):
                 properties = result.get("properties", {})
-                title = properties.get("タイトル",{}).get("title",[{}])[0].get("text",{}).get("content", "")
+                title = properties.get("タイトル",{}).get("title",[{}])[0].get("text",{}).get("content", "").replace("_", " ")
                 editor_people = properties.get("編集者", {}).get("people", [{}])
                 editor_people_name = [editor.get("name", "") for editor in editor_people]
                 editorial_deadline_date = properties.get("編集締め切り",{}).get("date",{}).get("start", "")
